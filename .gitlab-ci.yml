@@ -1,0 +1,22 @@
+﻿pages:
+  image: python:3.12-slim
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    VECTORS: numberbatch-en-19.08.txt.gz
+    VECTORS_URL: https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz
+  cache:
+    key: build-inputs
+    paths:
+      - .cache/pip
+      - numberbatch-en-19.08.txt.gz
+  script:
+    - pip install -r requirements.txt
+    - test -f "$VECTORS" || python -c "import urllib.request, os; urllib.request.urlretrieve(os.environ['VECTORS_URL'], os.environ['VECTORS'])"
+    - python audit_vocab.py
+    - python build_static.py --count 500
+    - mv site public
+  artifacts:
+    paths:
+      - public

@@ -1,0 +1,292 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warmer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eaf0f3;
+    --panel: #f8fbfc;
+    --ink: #16233b;
+    --muted: #55657c;
+    --line: #c5d0d8;
+    --focus: #0b57d0;
+  }
+  * { box-sizing: border-box; }
+  [v-cloak] { display: none; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1rem/1.45 "Bricolage Grotesque", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .page { max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+  .masthead { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.5rem; }
+  .masthead h1 { margin: 0; font-size: 2.6rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  .puzzle { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; color: var(--muted); }
+  .puzzle input { width: 9rem; }
+
+  input[type=text] {
+    padding: .55rem .7rem; border: 1.5px solid var(--line); border-radius: .4rem; background: #fff;
+  }
+  .button {
+    padding: .55rem .9rem; border: 1.5px solid var(--ink); border-radius: .4rem;
+    background: transparent; font-weight: 600; cursor: pointer;
+  }
+  .button.primary { background: var(--ink); color: #fff; }
+  .button.quiet { border-color: var(--line); font-weight: 400; }
+  .button:disabled { opacity: .45; cursor: default; }
+
+  .guess-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+  .guess-row input { flex: 1 1 14rem; font-size: 1.25rem; }
+
+  .status { min-height: 4.6rem; margin: 1rem 0 1.25rem; }
+  .status p { margin: 0; }
+  .latest { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; font-size: 1.1rem; }
+  .latest .word { font-size: 1.6rem; font-weight: 800; }
+  .notice { margin-top: .4rem; font-weight: 600; }
+  .problem { color: #9b1c1c; font-weight: 600; }
+  .ending { padding: .9rem 1rem; border: 1.5px solid var(--ink); border-radius: .5rem; background: var(--panel); }
+  .ending strong { font-weight: 800; }
+
+  .chip { display: inline-block; padding: .1rem .55rem; border-radius: 1rem; font-weight: 600; white-space: nowrap; }
+
+  .board { display: grid; grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  @media (max-width: 52rem) { .board { grid-template-columns: 1fr; } }
+  h2 { margin: 0 0 .6rem; font-size: 1.15rem; font-weight: 800; }
+
+  .top { margin: 0; padding: 0; list-style: none; background: var(--panel); border: 1.5px solid var(--line); border-radius: .5rem; }
+  .top li { display: grid; grid-template-columns: 1.6rem 1fr auto auto; gap: .6rem; align-items: center; padding: .4rem .7rem; }
+  .top li + li { border-top: 1px solid var(--line); }
+  .top .place { color: var(--muted); text-align: right; }
+  .top .word { font-weight: 600; overflow-wrap: anywhere; }
+  .top .rank { color: var(--muted); min-width: 4.2rem; text-align: right; }
+  .top li.fresh { background: #fff6cf; }
+  .empty { margin: 0; padding: .9rem; color: var(--muted); background: var(--panel); border: 1.5px dashed var(--line); border-radius: .5rem; }
+
+  .ladder { border-radius: .5rem; overflow: hidden; border: 1.5px solid var(--line); background: var(--panel); }
+  .band { display: grid; grid-template-columns: 9.5rem 1fr; min-height: 2.9rem; }
+  .band + .band { border-top: 1px solid var(--line); }
+  .band .label { padding: .35rem .7rem; line-height: 1.2; }
+  .band .label b { display: block; font-weight: 800; }
+  .band .label span { font-size: .8rem; opacity: .9; }
+  .band .words { display: flex; flex-wrap: wrap; align-content: center; gap: .3rem .4rem; padding: .4rem .6rem; }
+  .band .words span { padding: .05rem .45rem; border: 1px solid var(--line); border-radius: .3rem; background: #fff; }
+  .band .words small { color: var(--muted); margin-left: .3rem; }
+  .band .words .fresh { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); animation: land .5s ease-out; }
+  @keyframes land { from { transform: scale(1.25); } to { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .band .words .fresh { animation: none; } }
+  @media (max-width: 30rem) { .band { grid-template-columns: 7rem 1fr; } }
+</style>
+</head>
+<body>
+<div id="app" class="page" v-cloak>
+  <header class="masthead">
+    <h1>Warmer</h1>
+    <form class="puzzle" @submit.prevent="openCode">
+      <label for="code">Puzzle code</label>
+      <input id="code" type="text" v-model.trim="codeDraft" autocomplete="off" spellcheck="false">
+      <button class="button quiet" type="submit" :disabled="!codeDraft || codeDraft === code">Open puzzle</button>
+      <button class="button quiet" type="button" @click="copyLink">{{ copied ? 'Link copied' : 'Copy link' }}</button>
+      <button class="button" type="button" @click="newPuzzle">New puzzle</button>
+    </form>
+  </header>
+
+  <form class="guess-row" @submit.prevent="submitGuess">
+    <input ref="guessBox" type="text" v-model="draft" :disabled="finished" aria-label="Your guess"
+           placeholder="Guess a word" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="button primary" type="submit" :disabled="finished || !draft.trim()">Guess</button>
+    <button class="button" type="button" @click="takeHint" :disabled="finished">Hint</button>
+    <button class="button" type="button" @click="giveUp" :disabled="finished">Give up</button>
+  </form>
+
+  <section class="status" aria-live="polite">
+    <div v-if="solved" class="ending">
+      <p>Solved in {{ guesses.length }} {{ guesses.length === 1 ? 'guess' : 'guesses' }}. The word was <strong>{{ answer }}</strong>.</p>
+    </div>
+    <div v-else-if="revealed" class="ending">
+      <p>The word was <strong>{{ revealed.secret }}</strong>. Its closest words:
+        {{ revealed.neighbors.map(n => n.word).join(', ') }}.</p>
+    </div>
+    <template v-else>
+      <p v-if="problem" class="problem">{{ problem }}</p>
+      <div v-else-if="latest">
+        <p class="latest">
+          <span>Guess {{ latest.n }}{{ latest.hint ? ' (hint)' : '' }}</span>
+          <span class="word">{{ latest.word }}</span>
+          <span class="chip" :style="heatStyle(latest.heat)">{{ heats[latest.heat].label }}</span>
+          <span>rank {{ fmt(latest.rank) }} of {{ fmt(total) }}, score {{ latest.score.toFixed(2) }}</span>
+        </p>
+        <p v-if="notice" class="notice">New in your top 10 at number {{ notice.place }}, replacing “{{ notice.bumped }}”.</p>
+      </div>
+      <p v-else>Guess any word. Each guess gets a temperature for how close its meaning is to the secret word.</p>
+    </template>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>Top 10 guesses</h2>
+      <ol v-if="topTen.length" class="top">
+        <li v-for="(g, i) in topTen" :key="g.word" :class="{ fresh: latest && g.word === latest.word }">
+          <span class="place">{{ i + 1 }}</span>
+          <span class="word">{{ g.word }}</span>
+          <span class="chip" :style="heatStyle(g.heat)">{{ g.rank === 1 ? 'the word' : heats[g.heat].label }}</span>
+          <span class="rank">{{ fmt(g.rank) }}</span>
+        </li>
+      </ol>
+      <p v-else class="empty">Your ten closest guesses will be listed here.</p>
+    </section>
+
+    <section>
+      <h2>All {{ guesses.length || '' }} guesses by temperature</h2>
+      <div class="ladder">
+        <div class="band" v-for="(heat, i) in heats" :key="heat.label">
+          <div class="label" :style="heatStyle(i)">
+            <b>{{ heat.label }}</b>
+            <span>rank {{ fmt(heat.from) }}{{ i === heats.length - 1 ? '+' : '–' + fmt(heat.to) }}</span>
+          </div>
+          <div class="words">
+            <span v-for="g in bands[i]" :key="g.word" :class="{ fresh: latest && g.word === latest.word }">
+              {{ g.word }}<small>{{ fmt(g.rank) }}</small>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+const { createApp } = Vue;
+
+// One colour per heat bin, hottest first, with a text colour that stays readable on it.
+const HEAT_COLORS = [
+  ['#c2112b', '#fff'], ['#e2512a', '#fff'], ['#f08a24', '#16233b'], ['#f3b843', '#16233b'], ['#e6d596', '#16233b'],
+  ['#b9dacb', '#16233b'], ['#84bdd3', '#16233b'], ['#4a8ec2', '#fff'], ['#2f5fa3', '#fff'], ['#1c3370', '#fff'],
+];
+const TOP_COUNT = 10;
+
+async function api(path, body) {
+  const options = body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : {};
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  return response.json();
+}
+
+// Saved games are a convenience only; the page works without storage.
+function load(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+}
+
+createApp({
+  data() {
+    return {
+      total: 0, heats: [],
+      code: '', codeDraft: '', copied: false,
+      draft: '', guesses: [], latest: null, notice: null, problem: '', revealed: null,
+    };
+  },
+  computed: {
+    ranked() { return [...this.guesses].sort((a, b) => a.rank - b.rank); },
+    topTen() { return this.ranked.slice(0, TOP_COUNT); },
+    bands() { return this.heats.map((_, i) => this.ranked.filter(g => g.heat === i && g.rank > 1)); },
+    solved() { return this.ranked.length > 0 && this.ranked[0].rank === 1; },
+    answer() { return this.solved ? this.ranked[0].word : ''; },
+    finished() { return this.solved || !!this.revealed; },
+  },
+  async mounted() {
+    const info = await api('/api/info');
+    this.total = info.total;
+    this.heats = info.heats;
+    const fromLink = new URLSearchParams(location.search).get('code');
+    const code = fromLink || load('warmer:last') || (await api('/api/new')).code;
+    this.open(code);
+  },
+  methods: {
+    fmt(n) { return n.toLocaleString('en-US'); },
+    heatStyle(i) { return { background: HEAT_COLORS[i][0], color: HEAT_COLORS[i][1] }; },
+
+    open(code) {
+      const saved = load(`warmer:game:${code}`) || {};
+      this.code = this.codeDraft = code;
+      this.guesses = saved.guesses || [];
+      this.revealed = saved.revealed || null;
+      this.latest = this.notice = null;
+      this.problem = this.draft = '';
+      save('warmer:last', code);
+      history.replaceState(null, '', `?code=${encodeURIComponent(code)}`);
+      this.$nextTick(() => this.$refs.guessBox.focus());
+    },
+    openCode() { if (this.codeDraft) this.open(this.codeDraft); },
+    async newPuzzle() { this.open((await api('/api/new')).code); },
+    async copyLink() {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 1500);
+      } catch { this.problem = `Copy this link to share the puzzle: ${location.href}`; }
+    },
+    persist() { save(`warmer:game:${this.code}`, { guesses: this.guesses, revealed: this.revealed }); },
+
+    async submitGuess() {
+      const word = this.draft.trim().toLowerCase();
+      this.draft = '';
+      if (word) await this.score(word, false);
+      this.$refs.guessBox.focus();
+    },
+    async takeHint() {
+      const best = this.ranked.length ? this.ranked[0].rank : null;
+      const { word } = await api('/api/hint', { code: this.code, best_rank: best });
+      if (this.guesses.some(g => g.word === word)) {
+        this.problem = `No closer hint left: “${word}” is the closest word to the answer.`;
+        return;
+      }
+      await this.score(word, true);
+    },
+    async giveUp() {
+      this.revealed = await api('/api/reveal', { code: this.code });
+      this.persist();
+    },
+
+    // Score one word. Repeats are reported, not re-counted.
+    async score(word, hint) {
+      this.problem = '';
+      const repeat = this.guesses.find(g => g.word === word);
+      if (repeat) {
+        this.problem = `You already guessed “${word}” (guess ${repeat.n}, ${this.heats[repeat.heat].label}). It isn't counted again.`;
+        return;
+      }
+      const result = await api('/api/guess', { code: this.code, word });
+      if (!result.known) {
+        this.problem = `“${word}” isn't in the word list. Try another word.`;
+        return;
+      }
+      const bumped = this.topTen.length === TOP_COUNT ? this.topTen[TOP_COUNT - 1] : null;
+      const guess = { n: this.guesses.length + 1, word, rank: result.rank, score: result.score, heat: result.heat, hint };
+      this.guesses.push(guess);
+      this.latest = guess;
+      // The first ten guesses always make the list, so only announce once one gets replaced.
+      const place = this.topTen.indexOf(this.topTen.find(g => g.word === word)) + 1;
+      this.notice = bumped && place ? { place, bumped: bumped.word } : null;
+      this.persist();
+    },
+  },
+}).mount('#app');
+</script>
+</body>
+</html>

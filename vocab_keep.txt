@@ -1,0 +1,30 @@
+﻿# Words to keep in the game even though an automatic filter would remove them.
+# One word per line. Lines starting with # are ignored. Edit freely.
+# A word here is only usable if Numberbatch has a vector for it; the audit reports any that do not.
+
+# Plural-looking words that stand on their own
+media
+data
+means
+
+# Everyday words newer than the dictionary
+app
+smartphone
+selfie
+emoji
+podcast
+website
+wifi
+hashtag
+startup
+playlist
+username
+login
+inbox
+bitcoin
+superhero
+gameplay
+remix
+manga
+rehab
+admin

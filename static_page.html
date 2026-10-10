@@ -1,0 +1,511 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semantic Sugar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eaf0f3;
+    --panel: #f8fbfc;
+    --ink: #16233b;
+    --muted: #55657c;
+    --line: #c5d0d8;
+    --focus: #0b57d0;
+    --fresh: #fff6cf;
+  }
+  * { box-sizing: border-box; }
+  [v-cloak] { display: none; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1rem/1.45 "Bricolage Grotesque", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .page { max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+  .masthead { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; }
+  .masthead h1 { margin: 0; font-size: 2.6rem; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  .puzzle { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
+  .puzzle .number { min-width: 9.5rem; text-align: center; font-weight: 600; }
+  .puzzle .step { padding-inline: .7rem; }
+
+  input[type=text] {
+    padding: .55rem .7rem; border: 1.5px solid var(--line); border-radius: .4rem; background: #fff;
+  }
+  .button {
+    padding: .55rem .9rem; border: 1.5px solid var(--ink); border-radius: .4rem;
+    background: transparent; font-weight: 600; cursor: pointer;
+  }
+  .button.primary { background: var(--ink); color: #fff; }
+  .button.quiet { border-color: var(--line); font-weight: 400; }
+  .button:disabled { opacity: .45; cursor: default; }
+
+  .guess-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+  .guess-row input { flex: 1 1 14rem; font-size: 1.25rem; }
+
+  .status { min-height: 4.6rem; margin: 1rem 0 1.25rem; }
+  .status p { margin: 0; }
+  .latest { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; font-size: 1.1rem; }
+  .latest .word { font-size: 1.6rem; font-weight: 800; }
+  .notice { margin-top: .4rem; font-weight: 600; }
+  .problem { color: #9b1c1c; font-weight: 600; }
+  .ending { padding: .9rem 1rem; border: 1.5px solid var(--ink); border-radius: .5rem; background: var(--panel); }
+  .ending strong { font-weight: 800; }
+  .ending .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+
+  .chip { display: inline-block; padding: .1rem .55rem; border-radius: 1rem; font-weight: 600; white-space: nowrap; }
+
+  h2 { margin: 0 0 .6rem; font-size: 1.15rem; font-weight: 800; }
+  .board { display: grid; grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+  @media (max-width: 52rem) { .board { grid-template-columns: 1fr; } }
+
+  .top { margin: 0; padding: 0; list-style: none; background: var(--panel); border: 1.5px solid var(--line); border-radius: .5rem; }
+  .top li { display: grid; grid-template-columns: 1.6rem 1fr auto auto; gap: .6rem; align-items: center; padding: .4rem .7rem; }
+  .top li + li { border-top: 1px solid var(--line); }
+  .top .place { color: var(--muted); text-align: right; }
+  .top .word { font-weight: 600; overflow-wrap: anywhere; }
+  .top .rank { color: var(--muted); min-width: 4.2rem; text-align: right; }
+  .top li.fresh { background: var(--fresh); }
+  .empty { margin: 0; padding: .9rem; color: var(--muted); background: var(--panel); border: 1.5px dashed var(--line); border-radius: .5rem; }
+
+  .ladder { border-radius: .5rem; overflow: hidden; border: 1.5px solid var(--line); background: var(--panel); }
+  .band { display: grid; grid-template-columns: 9.5rem 1fr; min-height: 2.9rem; }
+  .band + .band { border-top: 1px solid var(--line); }
+  .band .label { padding: .35rem .7rem; line-height: 1.2; }
+  .band .label b { display: block; font-weight: 800; }
+  .band .label span { font-size: .8rem; opacity: .9; }
+  .band .words { display: flex; flex-wrap: wrap; align-content: center; gap: .3rem .4rem; padding: .4rem .6rem; }
+  .band .words span { padding: .05rem .45rem; border: 1px solid var(--line); border-radius: .3rem; background: #fff; }
+  .band .words small { color: var(--muted); margin-left: .3rem; }
+  .band .words .fresh { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); animation: land .5s ease-out; }
+  @keyframes land { from { transform: scale(1.25); } to { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .band .words .fresh { animation: none; } }
+  @media (max-width: 30rem) { .band { grid-template-columns: 7rem 1fr; } }
+
+  /* The closest words, shown once a puzzle is finished. */
+  .closest { margin-bottom: 1.75rem; }
+  .closest ol { margin: 0; padding: .6rem .8rem; list-style: none; columns: 12.5rem; column-gap: 1.2rem;
+                background: var(--panel); border: 1.5px solid var(--line); border-radius: .5rem; }
+  .closest li { display: flex; align-items: baseline; gap: .5rem; padding: .12rem 0 .12rem .5rem;
+                border-left: .3rem solid; break-inside: avoid; color: var(--muted); }
+  .closest .rank { min-width: 1.9rem; text-align: right; font-size: .85rem; }
+  .closest .word { overflow-wrap: anywhere; }
+  .closest li.found { color: var(--ink); }
+  .closest li.found .word { padding: 0 .45rem; border-radius: 1rem; font-weight: 600; }
+  .closest small { white-space: nowrap; }
+
+  .history { margin-top: 1.75rem; }
+  .history summary { font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+  .history ul { margin: .6rem 0 0; padding: 0; list-style: none; display: grid; gap: .4rem;
+                grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+  .history button { width: 100%; padding: .5rem .7rem; text-align: left; cursor: pointer; line-height: 1.3;
+                    background: var(--panel); border: 1.5px solid var(--line); border-radius: .4rem; }
+  .history button b { display: block; }
+  .history button span { color: var(--muted); }
+  .history button[aria-current=true] { border-color: var(--ink); }
+
+  dialog.confirm { max-width: 26rem; padding: 1.2rem; border: 1.5px solid var(--ink); border-radius: .6rem;
+                   background: var(--panel); color: var(--ink); }
+  dialog.confirm::backdrop { background: rgb(22 35 59 / .45); }
+  dialog.confirm p { margin: 0 0 1rem; font-size: 1.1rem; }
+  dialog.confirm div { display: flex; flex-wrap: wrap; gap: .5rem; }
+</style>
+</head>
+<body>
+<div id="app" class="page" v-cloak>
+  <header class="masthead">
+    <h1>Semantic Sugar</h1>
+    <nav class="puzzle" aria-label="Choose a puzzle">
+      <button class="button quiet step" type="button" @click="step(-1)" :disabled="!ready" aria-label="Previous puzzle">‹</button>
+      <span class="number">Puzzle {{ fmt(puzzle + 1) }} of {{ fmt(puzzleCount) }}</span>
+      <button class="button quiet step" type="button" @click="step(1)" :disabled="!ready" aria-label="Next puzzle">›</button>
+      <button class="button" type="button" @click="openUnplayed" :disabled="!ready">Random unplayed puzzle</button>
+      <button class="button quiet" type="button" @click="copyLink">{{ copied ? 'Link copied' : 'Copy link' }}</button>
+    </nav>
+  </header>
+
+  <form class="guess-row" @submit.prevent="submitGuess">
+    <input ref="guessBox" type="text" v-model="draft" :disabled="finished || !ready" aria-label="Your guess"
+           placeholder="Guess a word" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="button primary" type="submit" :disabled="finished || !draft.trim()">Guess</button>
+    <button class="button" type="button" @click="takeHint" :disabled="finished || !ready">Hint</button>
+    <button class="button" type="button" @click="giveUp" :disabled="finished || !ready">Give up</button>
+  </form>
+
+  <section class="status" aria-live="polite">
+    <div v-if="finished" class="ending">
+      <p v-if="solved">Solved in {{ guesses.length }} {{ guesses.length === 1 ? 'guess' : 'guesses' }}. The word was <strong>{{ answer }}</strong>.</p>
+      <p v-else>You gave up after {{ guesses.length }} {{ guesses.length === 1 ? 'guess' : 'guesses' }}. The word was <strong>{{ revealed.secret }}</strong>.</p>
+      <div class="actions">
+        <button class="button" type="button" @click="showClosest = !showClosest">
+          {{ showClosest ? 'Hide' : 'Show' }} the {{ closestCount }} closest words
+        </button>
+        <button class="button primary" type="button" @click="openUnplayed">Play another puzzle</button>
+      </div>
+    </div>
+    <template v-else>
+      <p v-if="problem" class="problem">{{ problem }}</p>
+      <div v-else-if="latest">
+        <p class="latest">
+          <span>Guess {{ latest.n }}{{ latest.hint ? ' (hint)' : '' }}</span>
+          <span class="word">{{ latest.word }}</span>
+          <span class="chip" :style="heatStyle(latest.heat)">{{ heats[latest.heat].label }}</span>
+          <span>rank {{ fmt(latest.rank) }} of {{ fmt(total) }}, score {{ latest.score.toFixed(2) }}</span>
+        </p>
+        <p v-if="notice" class="notice">New in your top 10 at number {{ notice.place }}, replacing “{{ notice.bumped }}”.</p>
+      </div>
+      <p v-else-if="guesses.length">You have {{ guesses.length }} {{ guesses.length === 1 ? 'guess' : 'guesses' }} on this puzzle so far. Keep going.</p>
+      <p v-else>Guess any word. Each guess gets a temperature for how close its meaning is to the secret word.</p>
+    </template>
+  </section>
+
+  <section v-if="finished && showClosest" class="closest">
+    <h2>The {{ closest.length }} closest words. You guessed {{ foundCount }} of them.</h2>
+    <ol>
+      <li v-for="w in closest" :key="w.word" :class="{ found: w.guess }" :style="{ borderColor: heatColor(w.heat) }">
+        <span class="rank">{{ w.rank }}</span>
+        <span class="word" :style="w.guess ? heatStyle(w.heat) : null">{{ w.word }}</span>
+        <small v-if="w.guess">guess {{ w.guess.n }}</small>
+      </li>
+    </ol>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>Top 10 guesses</h2>
+      <ol v-if="topTen.length" class="top">
+        <li v-for="(g, i) in topTen" :key="g.word" :class="{ fresh: latest && g.word === latest.word }">
+          <span class="place">{{ i + 1 }}</span>
+          <span class="word">{{ g.word }}</span>
+          <span class="chip" :style="heatStyle(g.heat)">{{ g.rank === 1 ? 'the word' : heats[g.heat].label }}</span>
+          <span class="rank">{{ fmt(g.rank) }}</span>
+        </li>
+      </ol>
+      <p v-else class="empty">Your ten closest guesses will be listed here.</p>
+    </section>
+
+    <section>
+      <h2>All {{ guesses.length || '' }} guesses by temperature</h2>
+      <div class="ladder">
+        <div class="band" v-for="(heat, i) in heats" :key="heat.label">
+          <div class="label" :style="heatStyle(i)">
+            <b>{{ heat.label }}</b>
+            <span>rank {{ fmt(heat.from) }}{{ i === heats.length - 1 ? '+' : '–' + fmt(heat.to) }}</span>
+          </div>
+          <div class="words">
+            <span v-for="g in bands[i]" :key="g.word" :class="{ fresh: latest && g.word === latest.word }">
+              {{ g.word }}<small>{{ fmt(g.rank) }}</small>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <details v-if="history.length" class="history">
+    <summary>Puzzles you've played ({{ history.length }})</summary>
+    <ul>
+      <li v-for="h in history" :key="h.puzzle">
+        <button type="button" @click="open(h.puzzle)" :aria-current="h.puzzle === puzzle">
+          <b>Puzzle {{ fmt(h.puzzle + 1) }}</b>
+          <span>{{ describe(h) }}</span>
+        </button>
+      </li>
+    </ul>
+  </details>
+
+  <dialog ref="confirmBox" class="confirm" @close="answerConfirm(false)">
+    <p>{{ confirm.message }}</p>
+    <div>
+      <button class="button primary" type="button" @click="answerConfirm(true)">{{ confirm.yes }}</button>
+      <button class="button" type="button" @click="answerConfirm(false)">{{ confirm.no }}</button>
+    </div>
+  </dialog>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+const { createApp } = Vue;
+
+// One colour per heat bin, hottest first, with a text colour that stays readable on it.
+const HEAT_COLORS = [
+  ['#c2112b', '#fff'], ['#e2512a', '#fff'], ['#f08a24', '#16233b'], ['#f3b843', '#16233b'], ['#e6d596', '#16233b'],
+  ['#b9dacb', '#16233b'], ['#84bdd3', '#16233b'], ['#4a8ec2', '#fff'], ['#2f5fa3', '#fff'], ['#1c3370', '#fff'],
+];
+const TOP_COUNT = 10;        // size of the running "top guesses" list
+const CLOSEST_COUNT = 250;   // how many of the answer's nearest words to show after a puzzle ends
+const STORE = 'semantic-sugar';
+
+// Everything is precomputed by build_static.py: a manifest, a word list, and one binary
+// file per puzzle. These large arrays stay outside Vue's reactive state on purpose.
+let MANIFEST = null, WORDS = [], WORD_INDEX = new Map();
+let ORDER = null, SCORES = null, RANK_OF = null;  // the puzzle currently open
+let HIDDEN = new Set();                            // offensive words: never offered or listed unprompted
+
+// Words are in frequency order. Only fairly common, inoffensive ones are offered as hints.
+function showable(wordIndex) { return wordIndex < MANIFEST.hintCount && !HIDDEN.has(wordIndex); }
+
+async function fetchOk(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  return response;
+}
+async function loadBase() {
+  MANIFEST = await (await fetchOk('data/manifest.json')).json();
+  HIDDEN = new Set(MANIFEST.hidden);
+  WORDS = (await (await fetchOk('data/words.txt')).text()).split('\n');
+  WORD_INDEX = new Map(WORDS.map((word, i) => [word, i]));
+}
+// A puzzle file is every word index, closest first (entry 0 is the answer), as unsigned
+// 16-bit integers, then the matching scores as signed 16-bit integers (2214 means 22.14).
+async function loadPuzzle(number) {
+  const name = String(number).padStart(4, '0');
+  const buffer = await (await fetchOk(`data/puzzles/${name}.bin`)).arrayBuffer();
+  const n = WORDS.length;
+  ORDER = new Uint16Array(buffer, 0, n);
+  SCORES = new Int16Array(buffer, n * 2, n);
+  RANK_OF = new Uint16Array(n);
+  for (let position = 0; position < n; position++) RANK_OF[ORDER[position]] = position;
+}
+// FNV-1a hash, kept so that older "?code=" links still open a puzzle.
+function puzzleFromCode(code) {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(code)) hash = Math.imul(hash ^ byte, 0x01000193);
+  return (hash >>> 0) % MANIFEST.puzzles;
+}
+function heatOf(rank) {
+  const i = MANIFEST.heats.findIndex(heat => rank <= heat.to);
+  return i === -1 ? MANIFEST.heats.length - 1 : i;
+}
+
+// Saved games live in this browser only. They are a convenience: the page works without storage.
+// One entry per puzzle, tied to the data version so a rebuilt word list never mixes with old saves.
+function gameKey(puzzle) { return `${STORE}:${MANIFEST.version}:puzzle:${puzzle}`; }
+function load(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable or full */ }
+}
+function savedGames() {
+  const games = [];
+  try {
+    const prefix = `${STORE}:${MANIFEST.version}:puzzle:`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key.startsWith(prefix)) continue;
+      const record = load(key);
+      if (record && Array.isArray(record.words)) games.push({ puzzle: Number(key.slice(prefix.length)), ...record });
+    }
+  } catch { /* storage unavailable */ }
+  return games.sort((a, b) => b.playedAt - a.playedAt);
+}
+
+createApp({
+  data() {
+    return {
+      total: 0, heats: [], puzzleCount: 0, closestCount: CLOSEST_COUNT,
+      puzzle: 0, ready: false, copied: false,
+      draft: '', guesses: [], latest: null, notice: null, problem: '', revealed: null,
+      showClosest: false, history: [],
+      confirm: { message: '', yes: '', no: '', resolve: null },
+    };
+  },
+  computed: {
+    ranked() { return [...this.guesses].sort((a, b) => a.rank - b.rank); },
+    topTen() { return this.ranked.slice(0, TOP_COUNT); },
+    bands() { return this.heats.map((_, i) => this.ranked.filter(g => g.heat === i && g.rank > 1)); },
+    solved() { return this.ranked.length > 0 && this.ranked[0].rank === 1; },
+    answer() { return this.solved ? this.ranked[0].word : ''; },
+    finished() { return this.solved || !!this.revealed; },
+    // The answer's nearest words by true rank. Offensive words appear only if the player guessed them.
+    closest() {
+      if (!this.finished || !this.showClosest) return [];
+      const guessed = new Map(this.guesses.map(g => [g.word, g]));
+      const list = [];
+      for (let p = 1; p < ORDER.length && list.length < CLOSEST_COUNT; p++) {
+        const word = WORDS[ORDER[p]];
+        const guess = guessed.get(word);
+        if (HIDDEN.has(ORDER[p]) && !guess) continue;
+        list.push({ word, rank: p + 1, heat: heatOf(p + 1), guess });
+      }
+      return list;
+    },
+    foundCount() { return this.closest.filter(w => w.guess).length; },
+  },
+  async mounted() {
+    try {
+      await loadBase();
+    } catch (error) {
+      this.problem = `The game data didn't load (${error.message}).`;
+      return;
+    }
+    this.total = MANIFEST.total;
+    this.heats = MANIFEST.heats;
+    this.puzzleCount = MANIFEST.puzzles;
+    this.history = savedGames();
+
+    // Which puzzle to open: a link wins, then wherever this browser left off, then a random one.
+    const link = new URLSearchParams(location.search);
+    const linked = Number(link.get('puzzle'));
+    const last = load(`${STORE}:last`);
+    if (Number.isInteger(linked) && linked >= 1 && linked <= MANIFEST.puzzles) await this.open(linked - 1);
+    else if (link.get('code')) await this.open(puzzleFromCode(link.get('code')));
+    else if (last && last.version === MANIFEST.version && last.puzzle < MANIFEST.puzzles) await this.open(last.puzzle);
+    else await this.openUnplayed();
+  },
+  methods: {
+    fmt(n) { return n.toLocaleString('en-US'); },
+    heatColor(i) { return HEAT_COLORS[i][0]; },
+    heatStyle(i) { return { background: HEAT_COLORS[i][0], color: HEAT_COLORS[i][1] }; },
+    describe(h) {
+      const guesses = `${h.words.length} ${h.words.length === 1 ? 'guess' : 'guesses'}`;
+      if (h.solved) return `Solved in ${guesses}: ${h.answer}`;
+      if (h.gaveUp) return `Gave up after ${guesses}: ${h.answer}`;
+      return `In progress, ${guesses}`;
+    },
+
+    // Open a puzzle by number (0-based) and restore whatever was played on it before.
+    async open(puzzle) {
+      this.ready = false;
+      this.puzzle = puzzle;
+      this.guesses = [];
+      this.revealed = this.latest = this.notice = null;
+      this.problem = this.draft = '';
+      this.showClosest = false;
+      try {
+        await loadPuzzle(puzzle);
+      } catch (error) {
+        this.problem = `This puzzle didn't load (${error.message}).`;
+        return;
+      }
+      // A save holds only the guessed words in order; ranks and temperatures are worked out again.
+      const saved = load(gameKey(puzzle)) || {};
+      const hints = new Set(saved.hints || []);
+      this.guesses = (saved.words || [])
+        .filter(word => WORD_INDEX.has(word))
+        .map((word, i) => this.makeGuess(word, i + 1, hints.has(i)));
+      this.revealed = saved.gaveUp ? this.answerDetails() : null;
+      save(`${STORE}:last`, { version: MANIFEST.version, puzzle });
+      history.replaceState(null, '', `?puzzle=${puzzle + 1}`);
+      this.ready = true;
+      this.$nextTick(() => this.$refs.guessBox.focus());
+    },
+    step(direction) { this.open((this.puzzle + direction + this.puzzleCount) % this.puzzleCount); },
+    openUnplayed() {
+      const played = new Set(this.history.map(h => h.puzzle));
+      let choices = [...Array(MANIFEST.puzzles).keys()].filter(n => !played.has(n) && n !== this.puzzle);
+      if (!choices.length) choices = [...Array(MANIFEST.puzzles).keys()];  // every puzzle has been played
+      return this.open(choices[Math.floor(Math.random() * choices.length)]);
+    },
+    async copyLink() {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        this.copied = true;
+        setTimeout(() => { this.copied = false; }, 1500);
+      } catch { this.problem = `Copy this link to share the puzzle: ${location.href}`; }
+    },
+    persist() {
+      save(gameKey(this.puzzle), {
+        words: this.guesses.map(g => g.word),
+        hints: this.guesses.flatMap((g, i) => (g.hint ? [i] : [])),
+        solved: this.solved,
+        gaveUp: !!this.revealed,
+        answer: this.finished ? WORDS[ORDER[0]] : null,  // only stored once the player has seen it
+        playedAt: Date.now(),
+      });
+      this.history = savedGames();
+    },
+
+    // Ask a yes/no question in a dialog. Resolves to true only if the player confirms.
+    ask(message, yes, no) {
+      return new Promise(resolve => {
+        this.confirm = { message, yes, no, resolve };
+        this.$nextTick(() => this.$refs.confirmBox.showModal());
+      });
+    },
+    answerConfirm(value) {
+      const { resolve } = this.confirm;
+      if (!resolve) return;  // already answered; closing the dialog fires this a second time
+      this.confirm.resolve = null;
+      if (this.$refs.confirmBox.open) this.$refs.confirmBox.close();
+      resolve(value);
+    },
+
+    answerDetails() { return { secret: WORDS[ORDER[0]] }; },
+    makeGuess(word, n, hint) {
+      const position = RANK_OF[WORD_INDEX.get(word)];  // 0 is the answer, so the displayed rank is position + 1
+      const rank = position + 1;
+      return { n, word, rank, score: SCORES[position] / 100, heat: heatOf(rank), hint };
+    },
+
+    submitGuess() {
+      const word = this.draft.trim().toLowerCase();
+      this.draft = '';
+      if (word) this.score(word, false);
+      this.$refs.guessBox.focus();
+    },
+    async takeHint() {
+      // Offer a showable word about halfway between the best guess so far and the answer:
+      // the last showable one at or before the halfway point, else the first one after it.
+      const best = this.ranked.length ? this.ranked[0].rank - 1 : WORDS.length;
+      const halfway = Math.max(1, Math.floor(best / 2));
+      let pick = -1;
+      for (let p = 1; p < best; p++) {
+        if (!showable(ORDER[p])) continue;
+        if (p <= halfway) { pick = p; continue; }
+        if (pick === -1) pick = p;
+        break;
+      }
+      if (pick === -1) {
+        this.problem = 'No closer hint left.';
+        return;
+      }
+      const yes = await this.ask('Take a hint? It is added to your guesses and counts as one.', 'Take the hint', 'Cancel');
+      if (yes) this.score(WORDS[ORDER[pick]], true);
+      this.$refs.guessBox.focus();
+    },
+    async giveUp() {
+      const yes = await this.ask('Give up on this puzzle and see the answer?', 'Show the answer', 'Keep playing');
+      if (!yes) {
+        this.$refs.guessBox.focus();
+        return;
+      }
+      this.revealed = this.answerDetails();
+      this.persist();
+    },
+
+    // Score one word. Repeats are reported, not re-counted.
+    score(word, hint) {
+      this.problem = '';
+      const repeat = this.guesses.find(g => g.word === word);
+      if (repeat) {
+        this.problem = `You already guessed “${word}” (guess ${repeat.n}, ${this.heats[repeat.heat].label}). It isn't counted again.`;
+        return;
+      }
+      if (!WORD_INDEX.has(word)) {
+        this.problem = `“${word}” isn't in the word list. Try another word.`;
+        return;
+      }
+      const bumped = this.topTen.length === TOP_COUNT ? this.topTen[TOP_COUNT - 1] : null;
+      const guess = this.makeGuess(word, this.guesses.length + 1, hint);
+      this.guesses.push(guess);
+      this.latest = guess;
+      // The first ten guesses always make the list, so only announce once one gets replaced.
+      const place = this.topTen.indexOf(this.topTen.find(g => g.word === word)) + 1;
+      this.notice = bumped && place ? { place, bumped: bumped.word } : null;
+      this.persist();
+    },
+  },
+}).mount('#app');
+</script>
+</body>
+</html>
