@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Cache the Numberbatch vectors
+        uses: actions/cache@v4
+        with:
+          path: numberbatch-en-19.08.txt.gz
+          key: numberbatch-en-19.08
+      - name: Download the vectors if not cached
+        run: >
+          test -f numberbatch-en-19.08.txt.gz ||
+          curl -fL -o numberbatch-en-19.08.txt.gz
+          https://conceptnet.s3.amazonaws.com/downloads/2019/numberbatch/numberbatch-en-19.08.txt.gz
+      - run: pip install -r requirements.txt
+      - run: python audit_vocab.py
+      - run: python build_static.py --count 500
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
